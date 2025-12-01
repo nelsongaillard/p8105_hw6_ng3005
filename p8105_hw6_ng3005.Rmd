@@ -1,0 +1,7 @@
+---
+title: "p8105_hw6_ng3005"
+author: "Nelson Gaillard"
+date: "2025-12-01"
+output: github_document
+---
+
