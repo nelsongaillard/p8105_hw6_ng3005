@@ -5,3 +5,69 @@ date: "2025-12-01"
 output: github_document
 ---
 
+```{r}
+library(tidyverse)
+library(p8105.datasets)
+library(broom)
+
+set.seed(1)
+```
+
+# Problem 2
+
+```{r}
+data("weather_df")
+
+boot_res =
+  replicate(5000, {
+    boot_dat = weather_df |> 
+      sample_frac(replace = TRUE)
+    
+    fit = lm(tmax ~ tmin + prcp, data = boot_dat)
+    
+    r2 = glance(fit) |> pull(r.squared)
+    
+    coefs = tidy(fit)
+    
+    b1 = coefs |> 
+      filter(term == "tmin") |> 
+      pull(estimate)
+    
+    b2 = coefs |> 
+      filter(term == "prcp") |> 
+      pull(estimate)
+    
+    ratio = b1 / b2
+    
+    c(r2 = r2, b1_over_b2 = ratio)
+  })
+
+boot_df = as_tibble(t(boot_res))
+
+boot_df |> 
+  pivot_longer(cols = everything(),
+               names_to = "quantity",
+               values_to = "value") |> 
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(~ quantity, scales = "free_x") +
+  labs(x = "Bootstrap estimate", y = "Count")
+```
+
+The distribution of beta_1 over beta_2 appears to be left-skewed and unimodal with a majority of the data concentrated closer to the right side of the plot. 
+
+The distribution of r2 appears to be relatively normally distributed and unimodal with a median bootstrap estimate hovering between 0.940 and 0.945. 
+
+```{r}
+boot_df |> 
+  summarize(
+    r2_low = quantile(r2, 0.025), 
+    r2_high = quantile(r2, 0.975),
+    ratio_low = quantile(b1_over_b2, 0.025),
+    ratio_high = quantile(b1_over_b2, 0.975)
+  ) |> 
+  knitr::kable()
+```
+
+Based on the table, the 95% CI for the ratio of beta_1 to beta_2 is (-281.31, -124.80). The 95% CI for r2 is (0.93, 0.95). 
+
