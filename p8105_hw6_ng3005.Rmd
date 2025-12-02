@@ -13,9 +13,9 @@ library(broom)
 set.seed(1)
 ```
 
-# Problem 2
+## Problem 2
 
-```{r}
+```{r, cache = TRUE}
 data("weather_df")
 
 boot_res =
@@ -25,7 +25,8 @@ boot_res =
     
     fit = lm(tmax ~ tmin + prcp, data = boot_dat)
     
-    r2 = glance(fit) |> pull(r.squared)
+    r2 = glance(fit) |> 
+      pull(r.squared)
     
     coefs = tidy(fit)
     
@@ -54,9 +55,9 @@ boot_df |>
   labs(x = "Bootstrap estimate", y = "Count")
 ```
 
-The distribution of beta_1 over beta_2 appears to be left-skewed and unimodal with a majority of the data concentrated closer to the right side of the plot. 
+The distribution of the ratio of beta_1 to beta_2 appears to be left-skewed and unimodal with a majority of the data concentrated closer to the right side of the plot. 
 
-The distribution of r2 appears to be relatively normally distributed and unimodal with a median bootstrap estimate hovering between 0.940 and 0.945. 
+The distribution of r2 appears to be relatively symmetric and unimodal with a median bootstrap estimate hovering between 0.940 and 0.945. 
 
 ```{r}
 boot_df |> 
@@ -66,8 +67,111 @@ boot_df |>
     ratio_low = quantile(b1_over_b2, 0.025),
     ratio_high = quantile(b1_over_b2, 0.975)
   ) |> 
-  knitr::kable()
+  knitr::kable(digits = 2)
 ```
 
 Based on the table, the 95% CI for the ratio of beta_1 to beta_2 is (-281.31, -124.80). The 95% CI for r2 is (0.93, 0.95). 
+
+## Problem 3
+
+```{r}
+birth_df =
+  read_csv("data/birthweight.csv", na = c("NA", ".", "")) |> 
+  janitor::clean_names() |> 
+  mutate(
+    babysex = as.factor(babysex),
+    mrace = as.factor(mrace),
+    frace = as.factor(frace),
+    malform = as.factor(malform))
+
+main_model = lm(
+  bwt ~ gaweeks + blength + bhead + ppbmi + wtgain + smoken + parity + babysex + mrace + fincome,
+  data = birth_df)
+
+birth_df |> 
+  modelr::add_predictions(main_model) |> 
+  modelr::add_residuals(main_model) |> 
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    x = "Fitted birthweight (g)", 
+    y = "Residuals", 
+    title = "Residuals vs Fitted Values for Birthweight Model"
+  )
+```
+
+Comparison to additional models
+
+```{r}
+cv_splits = modelr::crossv_mc(birth_df, n = 50)
+
+main_effects =
+  lm(bwt ~ blength + gaweeks, data = birth_df)
+
+interaction = 
+  lm(bwt ~ bhead * blength * babysex, data = birth_df)
+
+cv_splits |> 
+  mutate(
+    fit_main = map(train, ~ lm(main_model, data = as_tibble(.x))),
+    fit_main_effects = map(train, ~ lm(main_effects, data = as_tibble(.x))),
+    fit_int = map(train, ~ lm(interaction, data = as_tibble(.x))),
+    
+    rmse_main = map2_dbl(fit_main, test, ~ {
+      test_df = as_tibble(.y)
+      preds = predict(.x, newdata = test_df)
+      truth = test_df |> pull(bwt)
+      sqrt(mean((preds - truth)^2))
+    }),
+    
+    rmse_main_effects = map2_dbl(fit_main_effects, test, ~ {
+      test_df = as_tibble(.y)
+      preds = predict (.x, newdata = test_df)
+      truth = test_df |> pull(bwt)
+      sqrt(mean((preds - truth)^2))
+    }),
+    
+    rmse_interaction = map2_dbl(fit_int, test, ~ {
+      test_df = as_tibble(.y)
+      preds = predict(.x, newdata = test_df)
+      truth = test_df |> pull(bwt)
+      sqrt(mean((preds - truth)^2))
+    })
+  ) |> 
+  
+  summarize(
+    mean(rmse_main),
+    mean(rmse_main_effects),
+    mean(rmse_interaction)
+  ) |> 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "mean_rmse"
+  ) |> 
+  knitr::kable()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
