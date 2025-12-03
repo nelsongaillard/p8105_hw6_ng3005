@@ -100,7 +100,9 @@ birth_df |>
   )
 ```
 
-Comparison to additional models
+This model contains the outcome of interest, `bwt`, and the two exposures of interest, `gaweeks` and `blength` in addition to various relevant covariates--ones that clinically affect the outcome of interest. It is important to adjust for these convariates in the hypothesized model to avoid spurious associations due to confounding.
+
+#### Comparison to additional models
 
 ```{r}
 cv_splits = modelr::crossv_mc(birth_df, n = 50)
@@ -152,26 +154,4 @@ cv_splits |>
   knitr::kable()
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+This table shows the `mean_rmse` for each of the three models we're comparing--`main_model`, `main_effects`, and `interaction`. Based on the analysis, `main_model` has the lowest mean rmse, meaning this model's predictions are closest to the true birthweight compared to the other models. On the other hand, `main_effects`, the model containing only the variables `gaweek` and `blength`, has the greatest rmse. This indicates that this model does not fit the data as well as the other two. For `interaction`, mean rmse decreased notably, but not to the same extent as `main_model` which adjusts for numerous covariates.
